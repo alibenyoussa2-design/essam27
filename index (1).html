@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عطور عصام - المتجر الخاص</title>
+    <style>
+        /* التنسيق - CSS */
+        :root { --gold: #D4AF37; --brown: #2C1810; --soft: #4A3224; --white: #F4EBD0; }
+        body { background: var(--brown); color: var(--white); font-family: 'Arial', sans-serif; margin: 0; padding-bottom: 50px; text-align: right; }
+        .header { background: #1a0f0a; padding: 20px; text-align: center; border-bottom: 2px solid var(--gold); }
+        #secret-trigger { color: var(--gold); margin: 0; cursor: default; user-select: none; }
+        .container { max-width: 900px; margin: 20px auto; padding: 20px; background: var(--soft); border-radius: 15px; border: 1px solid var(--gold); }
+        h3 { color: var(--gold); text-align: center; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin: 20px 0; }
+        .card { background: var(--brown); border: 1px solid var(--gold); padding: 10px; border-radius: 10px; text-align: center; cursor: pointer; transition: 0.3s; }
+        .card img { width: 100%; height: 110px; object-fit: cover; border-radius: 5px; }
+        .selected { border: 3px solid #fff !important; box-shadow: 0 0 15px var(--gold); }
+        label { display: block; margin: 15px 0 5px; color: var(--gold); font-weight: bold; }
+        input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--gold); background: #1a0f0a; color: white; margin-bottom: 10px; box-sizing: border-box; }
+        .btn-action { background: var(--gold); color: var(--brown); border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; border-radius: 8px; font-size: 1.1rem; }
+        .hidden { display: none; }
+        .order-item { background: white; color: black; padding: 15px; margin-bottom: 15px; border-radius: 8px; border-right: 8px solid var(--gold); }
+        .admin-panel { border: 2px dashed var(--gold); padding: 20px; margin-top: 20px; background: rgba(0,0,0,0.3); }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1 id="secret-trigger" onclick="checkSecretClicks()">عطور عصام</h1>
+    
+</div>
+
+<div id="customer-page" class="container">
+    <h3>1- اختر نوع العطر:</h3>
+    <div id="perfumesDisplay" class="grid"></div>
+
+    <div id="bottle-section" class="hidden">
+        <hr style="border-color: var(--gold);">
+        <h3>2- اختر شكل القارورة:</h3>
+        <div id="bottlesDisplay" class="grid"></div>
+    </div>
+
+    <div id="user-info-section" class="hidden">
+        <hr style="border-color: var(--gold);">
+        <h3>3- معلومات الطلب:</h3>
+        <input type="text" id="custName" placeholder="الاسم الكامل">
+        <input type="tel" id="custPhone" placeholder="رقم الهاتف">
+        <input type="text" id="custAddress" placeholder="العنوان بالتفصيل">
+        <input type="number" id="userBudget" placeholder="الميزانية التي حددتها (دج)">
+        <button class="btn-action" onclick="submitOrder()">إرسال الطلب النهائي</button>
+    </div>
+</div>
+
+<div id="admin-page" class="container hidden">
+    <div id="login-section">
+        <h3>دخول الإدارة</h3>
+        <input type="password" id="adminPass" placeholder="كلمة المرور">
+        <button class="btn-action" onclick="login()">دخول</button>
+        <button onclick="location.reload()" style="background:none; border:none; color:white; cursor:pointer; margin-top:10px;">رجوع للمتجر</button>
+    </div>
+
+    <div id="admin-content" class="hidden">
+        <div class="admin-panel">
+            <h3>إضافة منتجات (عطر / قارورة)</h3>
+            <select id="uploadType">
+                <option value="perfume">إضافة عطر جديد</option>
+                <option value="bottle">إضافة قارورة جديدة</option>
+            </select>
+            <input type="text" id="itemName" placeholder="الاسم">
+            <input type="file" id="itemFile" accept="image/*">
+            <button onclick="uploadItem()" class="btn-action" style="background: #28a745; color: white;">حفظ ونشر الآن</button>
+        </div>
+
+        <hr style="margin: 30px 0;">
+        <h3>الطلبات الواردة من الزبائن</h3>
+        <div id="ordersList"></div>
+        <button onclick="clearAll()" style="background:red; color:white; border:none; padding:10px; cursor:pointer; width:100%; border-radius:5px; margin-top:20px;">مسح كافة البيانات (تصفير)</button>
+    </div>
+</div>
+
+<script>
+    /* البرمجة - JavaScript */
+    let clickCount = 0;
+    let currentPerfume = null;
+    let currentBottle = null;
+
+    function checkSecretClicks() {
+        clickCount++;
+        if (clickCount === 5) {
+            document.getElementById('customer-page').classList.add('hidden');
+            document.getElementById('admin-page').classList.remove('hidden');
+            clickCount = 0;
+        }
+        setTimeout(() => { clickCount = 0; }, 3000);
+    }
+
+    function uploadItem() {
+        const type = document.getElementById('uploadType').value;
+        const name = document.getElementById('itemName').value;
+        const file = document.getElementById('itemFile').files[0];
+
+        if(!name || !file) return alert("يرجى ملء الاسم واختيار صورة");
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            let storageKey = type === 'perfume' ? 'e_perfumes' : 'e_bottles';
+            let data = JSON.parse(localStorage.getItem(storageKey) || "[]");
+            data.push({ name, image: e.target.result });
+            localStorage.setItem(storageKey, JSON.stringify(data));
+            alert("تم الحفظ بنجاح!");
+            location.reload();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function loadStore() {
+        const perfumes = JSON.parse(localStorage.getItem('e_perfumes') || "[]");
+        const bottles = JSON.parse(localStorage.getItem('e_bottles') || "[]");
+        
+        document.getElementById('perfumesDisplay').innerHTML = perfumes.map((p, i) => `
+            <div class="card" id="p${i}" onclick="selectItem('perfume', '${p.name}', 'p${i}')">
+                <img src="${p.image}"> <p>${p.name}</p>
+            </div>
+        `).join('') || "<p style='text-align:center'>المتجر فارغ حالياً. ادخل كبائع وأضف عطورك.</p>";
+
+        document.getElementById('bottlesDisplay').innerHTML = bottles.map((b, i) => `
+            <div class="card" id="b${i}" onclick="selectItem('bottle', '${b.name}', 'b${i}')">
+                <img src="${b.image}"> <p>${b.name}</p>
+            </div>
+        `).join('');
+    }
+
+    function selectItem(type, name, id) {
+        if(type === 'perfume') {
+            currentPerfume = name;
+            document.querySelectorAll('#perfumesDisplay .card').forEach(c => c.classList.remove('selected'));
+            document.getElementById('bottle-section').classList.remove('hidden');
+        } else {
+            currentBottle = name;
+            document.querySelectorAll('#bottlesDisplay .card').forEach(c => c.classList.remove('selected'));
+            document.getElementById('user-info-section').classList.remove('hidden');
+        }
+        document.getElementById(id).classList.add('selected');
+    }
+
+    function submitOrder() {
+        const order = {
+            name: document.getElementById('custName').value,
+            phone: document.getElementById('custPhone').value,
+            address: document.getElementById('custAddress').value,
+            budget: document.getElementById('userBudget').value,
+            perfume: currentPerfume, bottle: currentBottle,
+            date: new Date().toLocaleString('ar-DZ')
+        };
+        if(!order.name || !order.phone) return alert("يرجى كتابة الاسم ورقم الهاتف");
+
+        let orders = JSON.parse(localStorage.getItem('e_orders') || "[]");
+        orders.push(order);
+        localStorage.setItem('e_orders', JSON.stringify(orders));
+        alert("تم إرسال طلبك لعصام بنجاح!");
+        location.reload();
+    }
+
+    function login() {
+        if(document.getElementById('adminPass').value === "essam2025") {
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('admin-content').classList.remove('hidden');
+            loadOrders();
+        } else { alert("كلمة المرور خاطئة!"); }
+    }
+
+    function loadOrders() {
+        const orders = JSON.parse(localStorage.getItem('e_orders') || "[]");
+        document.getElementById('ordersList').innerHTML = orders.reverse().map(o => `
+            <div class="order-item">
+                <b>الزبون:</b> ${o.name} (${o.phone}) <br>
+                <b>العنوان:</b> ${o.address} <br>
+                <b>الطلب:</b> عطر ${o.perfume} في ${o.bottle} <br>
+                <b>الميزانية:</b> ${o.budget} دج <br>
+                <small>${o.date}</small>
+            </div>
+        `).join('') || "<p>لا توجد طلبات واردة حالياً.</p>";
+    }
+
+    function clearAll() {
+        if(confirm("سيتم مسح كل المنتجات والطلبات! هل أنت متأكد؟")) {
+            localStorage.clear();
+            location.reload();
+        }
+    }
+
+    loadStore();
+</script>
+</body>
+</html>
